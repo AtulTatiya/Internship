@@ -1,0 +1,60 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+import pandas as pd
+
+# Function to scrape product details from a product URL
+def scrape_product_details(product_url):
+    response = requests.get(product_url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        # Extract product details
+        try:
+            product_description = soup.find("div", {"id": "productDescription"}).get_text(strip=True)
+        except AttributeError:
+            product_description = "N/A"
+        
+        try:
+            asin = soup.find("th", text="ASIN").find_next("td").get_text(strip=True)
+        except AttributeError:
+            asin = "N/A"
+        
+        try:
+            manufacturer = soup.find("th", text="Manufacturer").find_next("td").get_text(strip=True)
+        except AttributeError:
+            manufacturer = "N/A"
+        
+        return product_description, asin, manufacturer
+    else:
+        return "N/A", "N/A", "N/A"
+
+# Load the list of product URLs
+with open("amazon_product_data.csv", "r", encoding="utf-8") as csv_file:
+    reader = csv.DictReader(csv_file)
+    data = [row for row in reader]
+
+# Initialize an empty list to store the scraped data
+full_data = []
+
+# Loop through the product URLs and scrape additional details
+for item in data:
+    product_url = item["Product URL"]
+    product_description, asin, manufacturer = scrape_product_details(product_url)
+    
+    full_data.append({
+        "Product URL": product_url,
+        "Product Name": item["Product Name"],
+        "Product Price": item["Product Price"],
+        "Rating": item["Rating"],
+        "Number of Reviews": item["Number of Reviews"],
+        "Description": product_description,
+        "ASIN": asin,
+        "Manufacturer": manufacturer
+    })
+
+# Save the data to a new CSV file
+df = pd.DataFrame(full_data)
+df.to_csv("amazon_product_details.csv", index=False)
+
+print("Data has been successfully scraped and saved to amazon_product_details.csv.")
